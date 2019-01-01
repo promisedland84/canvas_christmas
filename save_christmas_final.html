@@ -1,0 +1,405 @@
+<!DOCTYPE html> 
+
+<!-- 
+Matt Koenen
+IS 141 - Graphics for the Web
+HTML Canvas Final Project - Interactive Greeting Card
+--SPECIAL NOTES--
+Snow effect was obtained from https://codepen.io/MariamMassadeh/pen/AbBCt
+-->
+
+<html> 
+
+	<head> 
+		<title>Merry Christmas</title> 
+		<style>
+			canvas {
+				border: #333 10px solid;
+			}
+			
+		</style>
+	</head> 
+	
+	<body>
+		
+		<canvas id="myCanvas" width="1920" height="925">
+			
+		</canvas>
+		<script>
+			var canvas = document.querySelector("#myCanvas");
+			var ctx = canvas.getContext("2d");
+			
+			//canvas dimensions
+			var W = canvas.width;
+			var H = canvas.height;
+			
+			//mouse position
+			var canvasPos = getPosition(canvas);
+			var mouseX = 674.5;
+			var mouseY = 264.5;
+			var xPos = 0;
+			var yPos = 0;
+			var dX = 0;
+			var dY = 0;
+			
+			//dragging boolean
+			var dragging = false;
+			
+			//Image Variables
+			var roomImage = new Image();
+				roomImage.src = 'Room2.png';
+			var mtnLeft = new Image();
+				mtnLeft.src = 'mtnLeft.png';
+			var mtnRight = new Image();
+				mtnRight.src = 'mtnRight.png';
+			var treeImage = new Image();
+				treeImage.src = 'tree3.png';
+			var star = new Image();
+				star.src = 'star.png';
+			var saved = new Image();
+				saved.src = 'saved1.jpg';
+			
+			//text variables
+			var txtX = 1005;
+			var txtY = -1;
+			var instX = W + 5;
+			var instY = 1500;
+			var instInc = 0;
+			
+			//keypress variables
+			var keys = [];
+			var pressed = false;
+			var canPress = false;
+			
+			//Image Event Listeners
+			roomImage.addEventListener("load", loadImages, false);
+			treeImage.addEventListener("load", loadImages, false);
+			saved.addEventListener("load", loadImages, false);
+			
+			//keystroke event listener
+			window.addEventListener("keydown", keysPressed, false);
+			
+			//initiate the scene
+			init();
+			
+			//Function to load background images
+			function loadImages(e) {
+			}
+			
+			//function to initiate the scene
+			function init(){
+				animate();
+				//canvas.addEventListener("mousemove", setMousePosition, false);
+				canvas.addEventListener("mousedown", mouseDownListener, false);
+				
+			}
+			
+			//set mouse position to match canvas position
+			function setMousePosition(e) {
+				mouseX = e.clientX - canvasPos.x;
+				mouseY = e.clientY - canvasPos.y;
+			}
+			
+			//function for determining if a click on the circle has been initiated 
+			function mouseDownListener(e){
+				dragging = true;
+				if(dragging) {
+					window.addEventListener("mousemove", mouseMoveListener, false);
+				}
+				canvas.removeEventListener("mousedown", mouseDownListener, false);
+				window.addEventListener("mouseup", mouseUpListener, false);
+				
+				//preventing the click from interfereing with the browser window
+				if (e.preventDefault) {
+					e.preventDefault();
+				} //standard
+				else if (e.returnValue) {
+					e.returnValue = false;
+				} //older IE
+				return false;
+			}
+			
+			//function for determining if the click-hold has ended
+			function mouseUpListener(e) {
+				canvas.addEventListener("mousedown", mouseDownListener, false);
+				window.removeEventListener("mouseup", mouseUpListener, false);
+				if (dragging) {
+					dragging = false;
+				window.removeEventListener("mousemove", mouseMoveListener, false);
+				}
+			}
+			
+			//function for moving the circle with the mouse 
+			function mouseMoveListener(e) {
+				//getting mouse position correctly 
+				mouseX = e.clientX - canvasPos.x;
+				mouseY = e.clientY - canvasPos.y;
+			}
+			
+			//animate the scene
+			function animate() {
+				if (pressed == false){
+					ctx.clearRect(0,0,W,H);
+					snow();
+					drawTree();
+					drawText();
+
+					ctx.drawImage(star,
+						mouseX - star.height/2.25,
+						mouseY - star.width/1.8);
+
+					requestAnimationFrame(animate);
+				} else {
+					drawSaved();
+				}
+			}
+			
+			//function to draw the tree
+			function drawTree() {
+				ctx.drawImage(treeImage,681,136)
+			}
+			
+			//function to draw the star
+			function drawStar() {
+				ctx.drawImage(star,607,201);
+			}
+			
+			//populatye snowflake particles array
+			var maxFlakes = 500; //max particles
+			var flakes = [];
+			for(var i = 0; i < maxFlakes; i++)
+			{
+				flakes.push({
+					x: Math.random()*W, //x-coordinate
+					y: Math.random()*H, //y-coordinate
+					r: Math.random()*4+1, //radius
+					d: Math.random()*maxFlakes //density
+				})
+			}
+			
+			//function to draw the flakes in front of the mountains
+			function snow() {
+				ctx.clearRect(0,0,W,H);
+				ctx.drawImage(mtnLeft,87,48);
+				ctx.drawImage(mtnRight, 1366, 48);
+				ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+				ctx.beginPath();
+				for(var i = 0; i < maxFlakes; i++)
+				{
+					var p = flakes[i];
+					ctx.moveTo(p.x, p.y);
+					ctx.arc(p.x, p.y, p.r, 0, Math.PI*2, true);
+				}
+				ctx.fill();
+				//make sure the room image is on top of the mountains and snow
+				ctx.drawImage(roomImage,0,0);
+				updateSnow();
+			}
+			
+			//Function to move the snowflakes
+			//angle will be an ongoing incremental flag. Sin and Cos functions will be applied to it to create vertical and horizontal movements of the flakes
+			var angle = 0;
+			function updateSnow() {
+				angle += 0.011;
+				for(var i = 0; i < maxFlakes; i++) {
+					var p = flakes[i];
+					//Updating X and Y coordinates
+					//We will add 1 to the cos function to prevent negative values which will lead flakes to move upwards
+					//Every particle has its own density which can be used to make the downward movement different for each flake
+					//Lets make it more random by adding in the radius
+					p.y += Math.cos(angle+p.d) + 1.1 + p.r/2;
+					p.x += Math.sin(angle) * 2;
+
+					//Sending flakes back from the top when it exits
+					//Lets make it a bit more organic and let flakes enter from the left and right also.
+					if(p.x > W+5 || p.x < -5 || p.y > H) {
+						if(i%3 > 0) //66.67% of the flakes
+						{
+							flakes[i] = {x: Math.random()*W, y: -10, r: p.r, d: p.d};
+						} else {
+							//If the flake is exitting from the right
+							if(Math.sin(angle) > 0)
+							{
+								//Enter from the left
+								flakes[i] = {x: -5, y: Math.random()*H, r: p.r, d: p.d};
+							} else {
+								//Enter from the right
+								flakes[i] = {x: W+5, y: Math.random()*H, r: p.r, d: p.d};
+							}
+						}
+					}
+				}
+			}
+			
+			//function for displaying the text
+			function drawText() {
+				ctx.textAlign = "left";
+				if (mouseX >= 806 && mouseX <= 1167 && mouseY >= 424 && mouseY <= 845){
+					berateUser();
+				} else if (mouseX >= 905 && mouseX <= 1098 && mouseY >= 92 && mouseY <= 295) {
+					animateText();
+					canPress = true;
+				} else {
+					txtY = -1;
+					instY = 1500;
+					canPress = false
+					animateInstructions();
+				}
+			}
+			
+			//function to draw the instructions
+			function drawInstruction(str, x, y) {
+				ctx.font = "bold 75px Helvetica, Arial, sans-serif";
+				ctx.fillStyle = "#003300";
+				ctx.fillText(str, x, y);
+				
+				ctx.lineWidth = 3;
+				ctx.strokeStyle = "#997300";
+				ctx.strokeText(str, x, y);
+			}
+			
+			//function to animate the instructions
+			function animateInstructions(){
+				var instructions = ["You have to save Christmas!",
+								   "But don't worry, it's easy!",
+								   "Just place the star on the Tree!"];
+				
+				//text goes from left to right
+				/*if (instX >= 1920){
+						drawInstruction(instructions[instInc], instX, 75);
+						instX -= 10;
+						} else {
+							instX = 1950;
+							instInc++;
+						}*/
+				
+				//text goes from right to left
+				if (instX < -1200){
+					instX = W + 5;
+					instInc++;
+				} else {
+					drawInstruction(instructions[instInc], instX, 75);
+						instX -= 10;
+				}
+				if (instInc > 2){
+					instInc = 0;
+				}			
+			}
+			
+			//function to berate the user if they don't know where the star goes
+			function berateUser() {
+				if (instX < -1200){
+					instX = W + 5;
+				} else {
+					drawInstruction("No, on top of the tree, dummy...", instX, 75);
+						instX -= 10;
+				}
+			}
+			
+			//function to animate "Merry Christmas"
+			function animateText(){
+				ctx.font = "85pt CaslonOpnface BT";
+				ctx.textAlign = "center";
+				ctx.fillStyle = "#990000";
+				ctx.lineWidth = 2.8;
+				ctx.strokeStyle = "#003300";
+				var a = Math.PI * 0.258; // radians
+				var radius = 997;
+				merryChristmas(ctx, "Merry Christmas", txtX, txtY, radius, a);
+				txtY += 16;
+
+				if (txtY > 1080){
+					txtY = 1080;
+				}
+				pressEnd();
+			}
+			
+			//function for the "Merry Christmas" text
+			function merryChristmas(context, str, centerX, centerY, radius, a){
+                
+				ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(-1 * a / 2);
+                ctx.rotate(-1 * (a / str.length) / 2);
+                for (var i = 0; i < str.length; i++) {
+                    ctx.rotate(a / str.length);
+                    ctx.save();
+                    ctx.translate(0, -1 * radius);
+                    var char = str[i];
+                    ctx.fillText(char, 0, 0);
+					ctx.strokeText(char, 0, 0);
+                    ctx.restore();
+                }
+                ctx.resetTransform();
+				
+			}
+			
+			//function to display Press End Key instructions
+			function pressEnd() {
+				drawInstruction("Press the END key to save Christmas.", 1000, instY);
+				instY -= 5;
+				
+				if (instY < 500){
+					instY = 500;
+				}
+			}
+			
+			//function to draw the Saved Christmas image
+			function drawSaved(){
+				ctx.clearRect(0,0,W,H);
+				ctx.drawImage(saved,0,0);
+			}
+			
+			//key pressed function
+			function keysPressed(e){
+				//store an entry for every key pressed
+				keys[e.keyCode] = true;
+				
+				//set the key pressed boolean to true
+				//used to display Saved Christmas image in animate() function
+				if(keys[35] && canPress == true) {
+					pressed = true;
+				}
+				
+				//used to set key pressed boolean to false
+				//and reset the page
+				if (keys[36]) {
+					pressed = false;
+					location.reload();
+				}
+				
+				e.preventDefault();
+			}
+			
+			// Helper function to get an element's exact position
+			function getPosition(el) {
+			  var xPos = 0;
+			  var yPos = 0;
+
+			  while (el) {
+				if (el.tagName == "BODY") {
+				  // deal with browser quirks with body/window/document and page scroll
+				  var xScroll = el.scrollLeft || document.documentElement.scrollLeft;
+				  var yScroll = el.scrollTop || document.documentElement.scrollTop;
+
+				  xPos += (el.offsetLeft - xScroll + el.clientLeft);
+				  yPos += (el.offsetTop - yScroll + el.clientTop);
+				} else {
+				  // for all other non-BODY elements
+				  xPos += (el.offsetLeft - el.scrollLeft + el.clientLeft);
+				  yPos += (el.offsetTop - el.scrollTop + el.clientTop);
+				}
+
+				el = el.offsetParent;
+			  }
+			  return {
+				x: xPos,
+				y: yPos
+			  };
+			} 
+		</script>
+	</body> 
+	
+</html>
+
+ 
